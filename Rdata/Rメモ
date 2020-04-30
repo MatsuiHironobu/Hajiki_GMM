@@ -1,17 +1,20 @@
-# 0_環境設定（ディレクトリの設定→必要なパッケージの起動→使用する日本語フォントの設定）。パッケージが入っていない場合はインストールしてください。
-workingdir <- "/Users/matsuihironobu/Desktop/中世土師器皿の幾何学的形態測定分析/"
+# 1_環境設定（ディレクトリの設定→必要なパッケージの起動→使用する日本語フォントの設定）。パッケージが入っていない場合はインストールしてください。
+workingdir <- "/Users/username/任意の場所/任意のフォルダ/"　#作業を行うフォルダを作成しておく
 setwd(workingdir)
 library(Momocs)
-library(pipeR)
-par(family = "HiraKakuProN-W3")
+library(pipeR)　#この後出てくる「%>%」を使わない場合は不要
+par(family = "HiraKakuProN-W3")　#使用する日本語フォントはそれぞれのOSなどで違います。
 
-# 1_画像データの取り込み（RDataをロードする場合は不要です）
-jpg.list <- list.files("./small")
+# 2_画像データの取り込み（RDataをロードする場合は飛ばしてください）
+jpg.list <- list.files("./small")　#画像データ1〜3のjpgを「small」フォルダに格納しておいてください。
 list <- paste("./small/",jpg.list,sep="")　#ここら辺はインターネットから拾ってきたので必要かどうかよくわからない
-l <- import_jpg(list)　#上記のjpgデータ読み込みをlに格納する
+l <- import_jpg(list)　#上記のjpgデータ読み込みを「l」に格納する
 coo <- Out(l)
 stack(coo)
+
 # 3_一覧表の読み込み→標識点の設定（標識点を新たに３点設定。パネルに表示された図をクリックする）
+# 位置・サイズ・向きの情報を取り除いて形状のみに規格化しています。
+# 方法はいくつもあるので、momocsのintroductionおよびhelpを参照してください。
 　# 3-1・・・パイプ演算で省略化したもの
 　　d <- read.csv("small.csv")
 　　panel(coo,fac=d$type2,names=TRUE)　#一覧表のtype2の分類毎に色分けして表示
