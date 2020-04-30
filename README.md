@@ -5,6 +5,9 @@
 筆者がRのパッケージmomocsを使用するに当たって、気がついたことなども記載していくので、英語が苦手な日本の考古学研究者に役に立つと思います。
 
 ## 参考文献・ウェブサイト
+### Rパッケージmomocs
+- https://momx.github.io/Momocs/articles/Momocs_intro.html
+- Vincent Bonhomme, Sandrine Picq, Cédric Gaucherel, Julien Claude(2014)Momocs: Outline Analysis Using R,Journal of Statistical Software,56
 ### 理論関係
 - 生形貴男2005「現代形態測定学：化石、人骨、石器等のかたちの定量・比較ツール」『第四紀研究』44-5,297-313頁
 - 生形貴男2011「生物のかたちの測定と比較」『化石』89,39-54頁
