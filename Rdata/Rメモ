@@ -1,0 +1,47 @@
+#0_環境設定（ディレクトリの設定→必要なパッケージの起動→使用する日本語フォントの設定）。パッケージが入っていない場合はインストールしてください。
+workingdir <- "/Users/matsuihironobu/Desktop/中世土師器皿の幾何学的形態測定分析/"
+setwd(workingdir)
+library(Momocs)
+library(pipeR)
+par(family = "HiraKakuProN-W3")
+#1_画像データの取り込み（RDataをロードする場合は不要です）
+jpg.list <- list.files("./small")
+list <- paste("./small/",jpg.list,sep="")　#ここら辺はインターネットから拾ってきたので必要かどうかよくわからない
+l <- import_jpg(list)　#上記のjpgデータ読み込みをlに格納する
+coo <- Out(l)
+stack(coo)
+#3_一覧表の読み込み→標識点の設定（標識点を新たに３点設定。パネルに表示された図をクリックする）
+　#3-1・・・パイプ演算で省略化したもの
+　　d <- read.csv("small.csv")
+　　panel(coo,fac=d$type2,names=TRUE)　#一覧表のtype2の分類毎に色分けして表示
+　　coo.shape<-def_ldk(coo,3)%>%coo_slide(ldk=2)%>%fgProcrustes() 
+　　stack(coo.shape)
+　#3-2・・・代入する方法
+　　d <- read.csv("small.csv")
+　　panel(coo,fac=d$type2,names=TRUE)　#一覧表のtype2の分類毎に色分けして表示
+　　coo2<-def_ldk(coo,3)
+　　coo3<-coo_slide(coo2,ldk=2)
+　　coo.shape<-fgProcrustes(coo3)
+　　stack(coo.shape)
+　#3-3・・・Rdataから読み込んだ場合はこちらから（momocsとpipeRを起動してから）
+　　panel(coo2,fac=d$type2,names=TRUE)
+　　d <- read.csv("small.csv")
+　　coo.shape<-coo2%>%coo_slide(coo2,ldk=2)%>%fgProcrustes()
+　　stack(coo.shape)
+#4_主成分分析
+calibrate_harmonicpower_efourier(coo.shape,nb.h=30)
+coo.f <- efourier(coo.shape,nb.h=16,norm=F)
+pca <- PCA(coo.f)
+PCcontrib(pca,nax=1:3)
+scree_plot(pca)
+#5_可視化・・・色々な方法があるので試してみよう。
+plot_PCA(pca,f=d$type2,axes=c(1,2),chull=FALSE,morphospace=FALSE,points=FALSE,palette=col_solarized)%>%
+layer_chullfilled(alpha=0.9)%>%
+layer_points(pch=c(d$type2),cex=1)%>%　#一覧表のtype2別にポイントの形を変更する
+layer_morphospace_PCA(size=1.5,col="#000000")%>%　#主成分分析の結果を再構築した図を表示
+layer_axes(col="#000000")%>%　#グラフの枠線や軸線を設定
+layer_box(border="#000000")%>%
+layer_ellipsesaxes(conf=0.9,lwd=1)%>%　#信頼楕円の十字線を描写（confで範囲指定、lwdで太さ）
+layer_ellipses(conf=0.5,lwd=1)%>%　#信頼楕円の大きさ（デフォルトで50%）、線の太さを指定
+layer_labelgroups(cex=0.7)%>%　#グラフの中にラベルを挿入する。
+layer_title(title="富山県の小型土師器皿の楕円フーリエ解析",cex=1)
