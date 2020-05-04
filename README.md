@@ -11,25 +11,7 @@
 筆者はmacを使用していますが、windowsでも問題なく動きます。
 
 ### momocsのインストールについて
-momocs自体はCRANからインストールすることができますが、製作者はgithubから最新版をインストールするよう勧めています。筆者が一番最初につまづいたのがこの作業でした（2019年当時）。macだから？参考までにメモしておきます。
-
-#devtoolsをインストール
-  install_package(“devtools”)
-
-#momocsをgithubから導入
-  devtools::install_github("vbonhomme/Momocs", build_vignettes= TRUE)
-
-#→エラー
-  rglが関係している？
-  rglをCRANから導入。Rstudioのパッケージにチェックボックス（library(“rgl”))
-
-#→エラー
-  X11がない？というエラー。
-
-#X11 (XQuartz) をインストール
-  詳しくはインターネットで検索（参考：https://support.apple.com/ja-jp/HT201341）。
-
-#library(Momocs)でロード→成功
+momocsの最新版はCRANからインストールできます（ver1.3.0）。まもなくMomXというパッケージが公開されるため、momocsはまもなくretireするそうです。
 
 ### 用意するjpgデータについて
 考古学で応用する場合は、報告書に掲載している実測図を使用する場面が多いと思います。今回使用したデータはAdobe社のIllustratorでトレース→塗り潰しをしました。twitterでPhotoshopを使用して、自動選択ツール→塗り潰しでもできるとご指摘いただきました。どちらでも可能と思います。
