@@ -1,0 +1,238 @@
+---
+title: "楕円フーリエ解析を利用した土師器皿の研究"
+author: "Hironobu Matsui"
+date: "22/5/20"
+output:
+  pdf_document: 
+    latex_engine: xelatex 
+    highlight: "espresso"
+    toc: true
+    number_sections: yes
+header-includes: 
+  - \usepackage{bookmark} 
+  - \usepackage{xltxtra} 
+  - \usepackage{zxjatype} 
+  - \usepackage[ipaex]{zxjafont}
+---
+
+```{r setup, echo=FALSE,include=FALSE}
+knitr::opts_chunk$set(dev = "cairo_pdf", dev.args = list(family = "ipaexg"))
+```
+
+# はじめに
+
+　このレポートは　[松井2019]で行った楕円フーリエ解析の分析過程とデータを公開する目的で作成しました。考古学関係者が楕円フーリエ解析を行う際に参考になると思います。
+
+## 必要なパッケージの準備
+　この分析では、Rパッケージの**momocs**を使用します。初めてmomocsを使用する場合は、Rstudioの右下にあるPackages>Installでmomocsを検索してインストールしてください。
+
+以下のコードでmomocsと使用するパッケージを起動します。**PipeR**はコードを簡略化するために使用します。まだインストールしていない場合は、上記と同じ方法でインストールしましょう。
+
+```{r setup2, eval=TRUE}
+library(Momocs)
+library(pipeR)
+```
+
+## データセットを用意する
+　報告書に掲載している実測図をAdobeIllustratorでトレースし、同Photoshopで黒色で塗りつぶしたjpg画像を使用します。このデータセットは1つのフォルダに入れておきます。
+
+　なお、わざわざIlustratorでトレースしなくても、Photoshopの「自動選択ツール」>「作業用パスの作成」>「パスの塗りつぶし」でも用意することができます。経験上、細かいパスのずれは分析に影響しないと思っていますが、個人的には気持ち悪いのでパスを編集してから塗りつぶしています。
+
+　PCAの結果を分類などと合わせて表示したい場合は、必要なデータを記載したリスト（CSVファイル）を準備しておきます。jpg画像の順番がリストの順番になるようにしておいてください。エクセルやナンバーズで作成している場合が多いと思いますが、「名前をつけて保存」か「書き出し」で拡張子が設定できます。
+<br>
+
+　ここまででかなり時間を費やしていると思いますが、ほぼここまでで全体の70%だと思っています。
+
+# データの読み込みと規格化
+## jpgデータの読み込み
+　次にmomocsでjpgを読み込みます。ワークスペース（ディレクトリ）を設定していない場合は先にそちらから。
+
+```{r setup3,eval=FALSE}
+WD <- "/Users/YOURNAME/Desktop/KAWARAKE/"
+#データのあるフォルダを指定
+setwd(WD)
+```
+
+　**import_jpg**関数でフォルダにまとめたjpgをまとめて読み込みます。読みこむファイルの容量によりますが、30秒程度で完了します。今回はあらかじめ読み込んだデータがありますので、**load**関数を使って読み込みます。
+
+```{r chunk1,eval=FALSE}
+#load("Dataset.RData")を行う場合はスキップ！
+jpg.list <- list.files("./small")
+list <- paste("./small/",jpg.list,sep="")
+l <- import_jpg(list)
+coo <- Out(l)
+```
+
+```{r chunk2}
+load("Dataset.RData")
+```
+
+　**read.csv**関数で、準備したcsvファイルを読み込みます。読み込んだデータを確認したい場合、**head関数**を使えば先頭からn行目までの情報をみることができます。
+　
+```{r chank3, eval=FALSE}
+#load("Dataset.RData")を行った場合はスキップ！
+data<-read.csv("small.csv")
+```
+
+```{r chank4, eval=TRUE}
+head(data)#先頭6行を表示。
+```
+
+　読み込んだjpgデータの一覧を表示するには**panel**関数を使います。あらかじめ設定した分類ごとに表示することもできます。**stack**関数を使えば重ね合わせた図を出力することができます。
+　
+```{r chank5, eval=TRUE}
+panel(coo,fac=data$type2,names=TRUE) #"coo"の一覧を表示
+stack(coo) #"coo"を重ねた図を表示
+```
+
+## 規格化
+　楕円フーリエ解析を行う前に、位置・サイズ・向きの情報を規格化し、「形状」だけの情報にする。詳しい理論的な背景は[野下・田村2017]などを参照してください。
+
+　分析する対象ごとに規格化の方法は異なりますが、よく使われるのは**coo_scale**関数、**coo_center**関数などです。[momocsのReference](https://momx.github.io/Momocs/reference/index.html)を確認してください。
+
+　ここではアウトラインに標識点（どの図にもある相同な点）を設置し、アウトラインの始点を選択し（標識点2）、次に**fgProcrustes**関数で規格化します。考古学遺物は生物と異なり相同な点を設定することが難しいですが、土器の断面の場合、中心線との交点（上端：標識点1、下端：標識点2）、口縁部の上端部を標識点3とみなして設定しています。
+
+　なぜよく使われる**coo_scale**関数などで規格化をしないかというと、主成分分析の結果を再構築する際に大きく形が崩れる現象が生じたため、この方法を採用しています。
+
+- 標識点を設定して規格化する方法は、[Fish outline analysis with R](https://rfrelat.github.io/FishMorpho.html)を参考にしています。
+
+```{r chank6, eval=FALSE}
+#load("Dataset.RData")を行った場合はスキップ！
+coo.shape<-def_ldk(coo,3)%>%coo_slide(ldk=2)%>%fgProcrustes() 
+```
+
+stackで結果を表示します。
+```{r chank7, eval=TRUE}
+stack(coo.shape) #"coo.shape"を重ねた図を表示
+```
+
+
+# 楕円フーリエ解析
+## 楕円フーリエ解析
+　楕円フーリエ解析を行う前に、必要な調和数を特定します。調和数は多くても少なくても分析に支障があります。特定した調和数を用いて、**efourier**関数で楕円フーリエ解析を行います。規格化はすでに行っていますので、**norm=FALSE**にしておく必要があります。
+```{r chank8, eval=FALSE}
+#load("Dataset.RData")を行った場合はスキップしてもOK!
+calibrate_harmonicpower_efourier(coo.shape,nb.h=30)
+coo.f <- efourier(coo.shape,nb.h=16,norm=FALSE)
+```
+
+## 主成分分析
+　楕円フーリエ解析を可視化する方法の1つに主成分分析があります。主成分分析は統計学上のデータ解析手法で、たくさんの情報をバラツキを最もよく表すよう要約することができます。**PCcontrib**関数でその結果を表示できます。**Mean**は平均、**SD**は標準偏差を表します。
+```{r chank9, eval=TRUE}
+pca <- PCA(coo.f)
+PCcontrib(pca,nax=1:3) #第1〜3主成分までの結果を表示する
+```
+
+（参考）下の図は**coo_center**関数と**coo_scale**関数で規格化した結果です。
+```{r chank9-2, eval=TRUE,echo=FALSE,include=TRUE,warning=FALSE}
+#よく使われる方法です。このコードは実行しなくても良いです。
+coo.shape2<-coo%>%coo_scale() %>%coo_center()
+coo.f2 <- efourier(coo.shape2,nb.h=16,norm=FALSE)
+p <- PCA(coo.f2)
+PCcontrib(p,nax=1:3) 
+```
+
+## 主成分分析の結果を出力
+　**plot_PCA**関数で主成分分析の結果を図示します。**layer**関数を重ねることで図を加工することができます。図に日本語を使用する場合は**par(family = "HiraKakuProN-W3（任意のフォント））")**関数を使います。
+
+- layer_points関数：一覧表のtype2別にポイントの形を変更
+- layer_morphospace_PCA関数：主成分分析の結果を再構築した図を表示
+- layer_ellipsesaxes関数：信頼楕円の十字線を描写（confで範囲指定、lwdは太さ）
+- layer_ellipses関数：信頼楕円の大きさ（デフォルトで50%）
+- layer_legend関数：凡例の文字の大きさを変更
+
+```{r chank10, eval=TRUE}
+plot_PCA(pca,f=data$type2,axes=c(1,2),chull=FALSE,
+         morphospace=FALSE,points=FALSE,
+         palette=col_solarized,
+         legend=FALSE)%>% #PC1,PC2の結果を表示
+layer_chullfilled(alpha=0.9)%>% #分布の範囲を表示
+layer_points(pch=c(data$type2),cex=1)%>%
+layer_morphospace_PCA(size=1,col="#000000")%>%
+layer_ellipsesaxes(conf=0.9,lwd=1)%>%
+layer_ellipses(conf=0.5,lwd=1)%>%
+layer_legend(cex=3/4)%>%
+layer_title(title="PC1vs.PC2",cex=2/3)
+```
+
+```{r chank11, eval=TRUE,echo=FALSE,include=TRUE}
+plot_PCA(pca,f=data$type2,axes=c(1,3),chull=FALSE,morphospace=FALSE,points=FALSE,palette=col_solarized,legend=FALSE)%>% #第1・3主成分の結果を表示
+layer_chullfilled(alpha=0.9)%>% #分布の範囲を表示
+layer_points(pch=c(data$type2),cex=1)%>%
+layer_morphospace_PCA(size=1,col="#000000")%>%
+layer_ellipsesaxes(conf=0.9,lwd=1)%>%
+layer_ellipses(conf=0.5,lwd=1)%>%
+layer_legend(cex=3/4)%>%
+layer_title(title="PC1vs.PC3",cex=2/3)
+```
+
+```{r chank12, eval=TRUE,echo=FALSE,include=TRUE}
+plot_PCA(pca,f=data$type2,axes=c(2,3),chull=FALSE,morphospace=FALSE,points=FALSE,palette=col_solarized,legend=FALSE)%>% #第2・3主成分の結果を表示
+layer_chullfilled(alpha=0.9)%>% #分布の範囲を表示
+layer_points(pch=c(data$type2),cex=1)%>%
+layer_morphospace_PCA(size=1,col="#000000")%>%
+layer_ellipsesaxes(conf=0.9,lwd=1)%>%
+layer_ellipses(conf=0.5,lwd=1)%>%
+layer_legend(cex=3/4)%>%
+layer_title(title="PC2vs.PC3",cex=2/3)
+```
+
+## 「外れ値」を除外する
+　**PCcontrib**関数や**plot_PCA**関数で主成分分析の結果を可視化した時、形の再構築が上手くいかなかったり、点が極端に離れた位置にプロットされることがあります（ここでは「外れ値」と呼ぶことにします。特に土器の断面のような形で生じるようです）。
+
+　英国の幾何学的形態分析を利用している考古学者によると、楕円フーリエ解析の結果自体は間違ってはいないようです。再構築された形は実際に存在するものではないことに注意が必要です。ここは数学や統計に詳しくない人文系の研究者が気をつけなければいけない点のようです。
+
+　と言いつつもmomocsでは**which_out**関数で「外れ値」を除外することができるようですので使用してみます。詳しくはmomocsの[Identify outliers](https://momx.github.io/Momocs//reference/which_out.html)を参照してください。
+
+```{r chank13, eval=TRUE,echo=TRUE,include=TRUE}
+which_out(pca$x[,1],0.5)
+#214番目のTY081が該当
+cols <- rep("black", nrow(pca$x))
+outliers <- which_out(pca$x[, 1], 0.5)
+cols[outliers] <- "red"
+plot(pca, col=cols)
+#外れ値が赤くプロットされる
+```
+
+```{r chank14, eval=TRUE,echo=TRUE,include=TRUE}
+pca2<-coo.f%>%slice(-outliers)%>%PCA 
+#再度主成分分析を実行。
+data2<-data[,-214]<-NULL
+#dataから該当の行を削除
+#複数該当する場合はfilter関数が便利
+plot_PCA(pca2,f=data2$type2,axes=c(1,2))
+```
+
+## 結果の解釈について
+　論文を書いていたときに困ったことが結果の解釈です。日本語で書かれている論文を参考に、主成分分析の結果を解釈することにしました。
+
+　PCcontrib(pca,nax=1:3)で出力した図をみると、第一主成分では器の厚み、第二主成分では体部の外反具合、第三主成分は底部の形状（丸底か平底か）を反映していると考えられます。これに主成分分析をプロットした図と考古学的な知見を検証して、主に下の3点を指摘しています。
+
+  - 富山県における京都系土師器皿TI類はまとまる傾向にあること
+  - 調整（製作方法）が異なる型式や、明らかに時期が異なる型式は京都系TI類とは離れる傾向にあること 
+  - TI類に関して、器の厚み（第一主成分）で形に違いが出ていること（調整の退化や地理的に近い遺跡同士でも違いがあるので、おそらく時期差が反映）
+
+　今のところ日本で幾何学的形態分析で考古資料を扱っているものは極めて少ないのですが、海外ではすでにたくさんの論文があるので参考になります。個人的には、すでに考古学研究が進んでいる分野で取り入れるのが最も成果が出せると感じています（須恵器とか面白そう）。当たり前ですが、この分析を使えば何かがわかるだろうという分析はあまりおすすめしません（明確な目的意識を持たず論文を書いたのは反省しています…。）。
+
+　多変量解析など考古学的な分析と組み合わせつつ、より客観的に結果を示す方法もあるようなので、今後も勉強していきたいと思っています。
+
+
+# 参考文献
+## 本論文
+- 松井広信2019「中世土師器皿の楕円フーリエ解析」『中近世陶磁器の考古学』11　雄山閣
+
+## momocs関係
+- [An introduction to Momocs](https://momx.github.io/Momocs/articles/Momocs_intro.html)
+- Vincent Bonhomme, Sandrine Picq, Cédric Gaucherel, Julien Claude(2014)Momocs: Outline Analysis Using R,Journal of Statistical Software,56
+
+## 理論関係
+- 生形貴男2005「現代形態測定学：化石、人骨、石器等のかたちの定量・比較ツール」『第四紀研究』44-5,297-313頁
+- 生形貴男2011「生物のかたちの測定と比較」『化石』89,39-54頁
+- 野下浩司・田村光平2017「幾何学的形態測定学とRを使った解析例」『文化進化の考古学』勁草書房,177-216頁
+
+## データの出典
+- 財団法人富山県文化振興財団埋蔵文化財調査事務所2002『石名田木舟遺跡発掘調査報告』富山県文化振興財団埋蔵文化財発掘調査報告14
+- 富山県埋蔵文化財センター・井口村教育委員会1990『井口城跡発掘調査概要』井口村教育委員会
+- 富山県埋蔵文化財センター・大島町教育委員会2000『八塚C遺跡』大島町教育委員会
+- 富山県埋蔵文化財センター・舟橋村教育委員会2001『富山県舟橋村仏生寺城跡発掘調査報告』舟橋村教育委員会
+- 富山市教育委員会2018『富山城跡発掘調査報告書　第一分冊』
